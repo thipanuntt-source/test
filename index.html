@@ -1,0 +1,901 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>สรุปผลการเงินปีงบประมาณ 2569</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --ink: #1d2433;
+    --muted: #5b6270;
+    --cur: #1f3a5f;
+    --prev: #8a8f98;
+    --neg: #c0392b;
+    --pos: #1a7f72;
+    --over: #e67e22;
+    --mid: #b8bec7;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Sarabun', 'Noto Sans Thai', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  .deck { display: none; max-width: 1000px; margin: 0 auto; padding: 16px; }
+  .slide {
+    display: none;
+    flex-direction: column;
+    background: var(--card);
+    border-radius: 12px;
+    padding: 28px 32px;
+    min-height: 540px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.06);
+  }
+  .slide.active { display: flex; }
+  .cover-label { font-size: 14px; color: var(--muted); letter-spacing: .02em; }
+  h1 { font-size: 26px; margin: 4px 0 8px; }
+  h2 { font-size: 22px; line-height: 1.4; margin: 0 0 6px; }
+  .sub { color: var(--muted); font-size: 14px; margin-bottom: 14px; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 14px 0; }
+  .card { border: 1px solid #e3e6eb; border-radius: 10px; padding: 14px 16px; }
+  .card .k { font-size: 13px; color: var(--muted); }
+  .card .v { font-size: 28px; font-weight: 700; margin-top: 4px; }
+  .card .d { font-size: 13px; margin-top: 4px; color: var(--muted); }
+  .chart-wrap { position: relative; height: 340px; }
+  .key { font-size: 13px; color: var(--muted); margin-top: 8px; }
+  .alert {
+    background: #fff4e5;
+    border-left: 4px solid var(--over);
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin-top: 12px;
+  }
+  .alert.ok { background: #eef7f5; border-left-color: var(--pos); }
+  .deficits { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; font-size: 13px; }
+  .chip { background: #fbeaea; color: #8e2a20; padding: 4px 10px; border-radius: 12px; }
+  .summary-row { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid #eceef2; font-size: 16px; line-height: 1.5; }
+  .summary-row .n {
+    flex: 0 0 30px; height: 30px; border-radius: 50%;
+    background: var(--cur); color: #fff; display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .foot { margin-top: auto; padding-top: 16px; font-size: 12px; color: var(--muted); border-top: 1px solid #eceef2; }
+  .nav { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; }
+  .nav button {
+    background: var(--cur); color: #fff; border: none; border-radius: 8px;
+    padding: 8px 16px; font-size: 14px; cursor: pointer;
+  }
+  .nav button:disabled { background: var(--mid); cursor: default; }
+  .counter { font-size: 14px; color: var(--muted); }
+  .loader {
+    max-width: 520px; margin: 80px auto; background: var(--card); border-radius: 12px;
+    padding: 32px; box-shadow: 0 2px 10px rgba(0,0,0,.06); text-align: center;
+  }
+  .loader input { margin-top: 16px; }
+  .error { color: var(--neg); font-size: 14px; margin-top: 12px; white-space: pre-wrap; text-align: left; }
+  @media (max-width: 720px) {
+    .cards { grid-template-columns: 1fr; }
+    .slide { padding: 20px; }
+    h2 { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- หน้ารับไฟล์ -->
+<div class="loader" id="loader">
+  <h1>สรุปผลการเงินปีงบประมาณ 2569</h1>
+  <p class="sub">เลือกไฟล์ data.xlsx เพื่อเริ่มแสดงผล (ไฟล์ไม่ถูกส่งออกนอกเครื่อง)</p>
+  <input type="file" id="fileInput" accept=".xlsx">
+  <div class="error" id="loadError"></div>
+</div>
+
+<!-- สไลด์ -->
+<div class="deck" id="deck">
+
+  <!-- สไลด์ 1: หน้าแรก -->
+  <section class="slide active" id="s1">
+    <div class="cover-label">สรุปผลประชุมสิ้นปีงบประมาณ · ข้อมูลสมมติ</div>
+    <h1 id="t1">สรุปผลการเงินปีงบประมาณ 2569</h1>
+    <h2 id="t1sub"></h2>
+    <p class="sub">เปรียบเทียบกับปีงบประมาณ 2568 · หน่วย: ล้านบาท</p>
+    <div class="cards">
+      <div class="card"><div class="k">รายรับรวม</div><div class="v" id="s1rev"></div><div class="d" id="s1revd"></div></div>
+      <div class="card"><div class="k">รายจ่ายรวม</div><div class="v" id="s1exp"></div><div class="d" id="s1expd"></div></div>
+      <div class="card"><div class="k">ส่วนเกิน</div><div class="v" id="s1sur"></div><div class="d" id="s1surd"></div></div>
+    </div>
+    <div id="alerts1"></div>
+    <div class="foot" data-foot></div>
+    <div class="nav"><button data-prev>ก่อนหน้า</button><span class="counter"></span><button data-next>ถัดไป</button></div>
+  </section>
+
+  <!-- สไลด์ 2: ข้อ 1 ผลรวมปีนี้เทียบปีก่อน -->
+  <section class="slide" id="s2">
+    <h2 id="t2"></h2>
+    <p class="sub">แท่ง: ผลต่างรายเดือนปี 2569 · เส้นทึบ: ยอดสะสมปี 2569 · เส้นประ: ยอดสะสมปี 2568 (รีเซ็ตทุกปีงบ)</p>
+    <div class="chart-wrap"><canvas id="c1"></canvas></div>
+    <div class="deficits" id="deficits2"></div>
+    <div class="foot" data-foot></div>
+    <div class="nav"><button data-prev>ก่อนหน้า</button><span class="counter"></span><button data-next>ถัดไป</button></div>
+  </section>
+
+  <!-- สไลด์ 3: ข้อ 4 รายรับมาจากไหน -->
+  <section class="slide" id="s3">
+    <h2 id="t3"></h2>
+    <p class="sub">รายรับแยกตามหมวด เทียบปีงบประมาณ 2568 และ 2569 (ล้านบาท)</p>
+    <div class="chart-wrap"><canvas id="c2"></canvas></div>
+    <div class="foot" data-foot></div>
+    <div class="nav"><button data-prev>ก่อนหน้า</button><span class="counter"></span><button data-next>ถัดไป</button></div>
+  </section>
+
+  <!-- สไลด์ 4: ข้อ 3 รายจ่ายเพิ่มที่ไหน -->
+  <section class="slide" id="s4">
+    <h2 id="t4"></h2>
+    <p class="sub">จากรายจ่ายปีงบประมาณ 2568 ไปถึงปีงบประมาณ 2569 แยกตามผลต่างของแต่ละหมวด (ล้านบาท)</p>
+    <div class="chart-wrap"><canvas id="c3"></canvas></div>
+    <div class="foot" data-foot></div>
+    <div class="nav"><button data-prev>ก่อนหน้า</button><span class="counter"></span><button data-next>ถัดไป</button></div>
+  </section>
+
+  <!-- สไลด์ 5: ข้อ 2 เบิกจ่ายเทียบแผนรายหน่วย -->
+  <section class="slide" id="s5">
+    <h2 id="t5"></h2>
+    <p class="sub">อัตราเบิกจ่าย = เบิกจ่ายจริงปีงบประมาณ 2569 ÷ แผน × 100 · ป้ายท้ายแท่งแสดงยอดจริงต่อแผน (ล้านบาท)</p>
+    <div class="chart-wrap"><canvas id="c4"></canvas></div>
+    <div class="key" id="key5">สีแดง = เบิกจ่ายต่ำกว่า 50% ของแผน · สีเทา = อยู่ระหว่าง 50–100% · สีส้ม = เกินแผน (ระบุจำนวนที่เกิน)</div>
+    <div class="foot" data-foot></div>
+    <div class="nav"><button data-prev>ก่อนหน้า</button><span class="counter"></span><button data-next>ถัดไป</button></div>
+  </section>
+
+  <!-- สไลด์ 6: หน้าสรุป -->
+  <section class="slide" id="s6">
+    <h2 id="t6"></h2>
+    <p class="sub">ข้อเสนอสำหรับที่ประชุม (ปรับได้ตามบริบท)</p>
+    <div class="summary-row"><div class="n">1</div><div id="sum1"></div></div>
+    <div class="summary-row"><div class="n">2</div><div id="sum2"></div></div>
+    <div class="summary-row"><div class="n">3</div><div id="sum3"></div></div>
+    <div class="foot" data-foot></div>
+    <div class="nav"><button data-prev>ก่อนหน้า</button><span class="counter"></span><button data-next>ถัดไป</button></div>
+  </section>
+
+</div>
+
+<script>
+// =====================================================================
+// ค่าคงที่และการตั้งค่า
+// =====================================================================
+
+// ปิด animation ของกราฟทั้งหมด
+Chart.defaults.animation = false;
+Chart.defaults.font.family = "'Sarabun','Noto Sans Thai',sans-serif";
+
+const FY_PREV = 2568;
+const FY_CUR = 2569;
+const FY_LIST = [FY_PREV, FY_CUR];
+const TX_COLS = ['date', 'doc_no', 'type', 'category', 'unit', 'amount', 'description'];
+const BUDGET_COLS = ['unit', 'plan'];
+const TYPES = ['รายรับ', 'รายจ่าย'];
+const STATE_SUBSIDY = 'เงินอุดหนุนจากรัฐ';
+
+const MONTHS_TH = ['ต.ค.', 'พ.ย.', 'ธ.ค.', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.'];
+const MONTHS_TH_FULL = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+  'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+
+const COLORS = {
+  neg: '#c0392b',
+  pos: '#1a7f72',
+  cur: '#1f3a5f',
+  prev: '#8a8f98',
+  over: '#e67e22',
+  mid: '#b8bec7',
+  up: '#e67e22',
+  down: '#2e86c1',
+  total: '#4a5568',
+  palette: ['#1f3a5f', '#2e86c1', '#1a7f72', '#e67e22', '#8a8f98', '#7d3c98']
+};
+
+// =====================================================================
+// ตัวช่วยจัดรูปแบบ
+// =====================================================================
+
+// แสดงเป็นล้านบาท ไม่มีทศนิยม (ค่าติดลบมีเครื่องหมาย)
+const fmtM = v => Math.round(v / 1e6).toLocaleString('th-TH');
+// แสดงค่าสัมบูรณ์เป็นล้านบาท
+const fmtMabs = v => Math.abs(Math.round(v / 1e6)).toLocaleString('th-TH');
+// แสดงล้านบาทสองตำแหน่ง ใช้กับยอดเล็ก เช่น กลับรายการ
+const fmtM2 = v => (Math.abs(v) / 1e6).toFixed(2);
+// ร้อยละหนึ่งตำแหน่ง มีเครื่องหมายบวกนำหน้า
+const fmtPctSigned = v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%';
+// ร้อยละหนึ่งตำแหน่ง
+const fmtPct = v => v.toFixed(1) + '%';
+// การเปลี่ยนแปลงเป็นร้อยละ (ฐานเป็นค่าสัมบูรณ์เพื่อกันเครื่องหมายผิด)
+const pctChange = (now, before) => (before ? (now - before) / Math.abs(before) * 100 : null);
+// วันที่ไทย เช่น "28 กันยายน 2569"
+const thaiDate = (y, m, d) => `${d} ${MONTHS_TH_FULL[m - 1]} ${y + 543}`;
+
+// =====================================================================
+// ส่วนที่ 1: อ่าน/ตรวจ
+// =====================================================================
+
+// แปลงค่าวันที่เป็น {y, m, d} ตามปีคริสต์ศักราช
+// Excel เก็บวันที่เป็นเลขซีเรียล (วันนับจาก 30 ธ.ค. 1899) ใช้ getUTC* เพื่อไม่ให้เขตเวลาเลื่อนวัน
+function toYMD(v) {
+  if (typeof v === 'number' && isFinite(v)) {
+    const ms = (Math.floor(v) - 25569) * 86400000;
+    const d = new Date(ms);
+    return { y: d.getUTCFullYear(), m: d.getUTCMonth() + 1, d: d.getUTCDate() };
+  }
+  if (v instanceof Date && !isNaN(v)) {
+    return { y: v.getUTCFullYear(), m: v.getUTCMonth() + 1, d: v.getUTCDate() };
+  }
+  if (typeof v === 'string') {
+    const m = v.trim().match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) return { y: +m[1], m: +m[2], d: +m[3] };
+  }
+  return null;
+}
+
+// ตรวจโครงสร้างไฟล์และแปลงแถวให้พร้อมคำนวณ
+function validateAndNormalize(wb) {
+  const issues = {
+    missingSheets: [],
+    missingCols: [],
+    badDate: 0,
+    badAmount: 0,
+    badType: 0,
+    unmatchedUnits: [],
+    outside: [],
+    totalRows: 0
+  };
+
+  const txWs = wb.Sheets['Transactions'];
+  const bgWs = wb.Sheets['Budget'];
+  if (!txWs) issues.missingSheets.push('Transactions');
+  if (!bgWs) issues.missingSheets.push('Budget');
+  if (issues.missingSheets.length) return { issues };
+
+  const txRaw = XLSX.utils.sheet_to_json(txWs, { raw: true, defval: null });
+  const bgRaw = XLSX.utils.sheet_to_json(bgWs, { raw: true, defval: null });
+
+  const hdrTx = Object.keys(txRaw[0] || {});
+  const hdrBg = Object.keys(bgRaw[0] || {});
+  TX_COLS.forEach(c => { if (!hdrTx.includes(c)) issues.missingCols.push('Transactions.' + c); });
+  BUDGET_COLS.forEach(c => { if (!hdrBg.includes(c)) issues.missingCols.push('Budget.' + c); });
+  if (issues.missingCols.length) return { issues };
+
+  // แผนรายหน่วยงาน จับคู่ด้วย unit
+  const plan = {};
+  bgRaw.forEach(r => { plan[String(r.unit).trim()] = Number(r.plan) || 0; });
+
+  const rows = [];
+  const unmatched = new Set();
+
+  txRaw.forEach(r => {
+    issues.totalRows++;
+
+    const ymd = toYMD(r.date);
+    if (!ymd) { issues.badDate++; return; }
+
+    const amount = Number(r.amount);
+    if (!isFinite(amount)) { issues.badAmount++; return; }
+
+    const type = String(r.type || '').trim();
+    if (!TYPES.includes(type)) { issues.badType++; return; }
+
+    // ปีงบประมาณ: เริ่ม 1 ต.ค. ปีงบ = ปี พ.ศ. ของวันที่ + 1 ถ้าเดือน >= 10
+    const fy = ymd.y + 543 + (ymd.m >= 10 ? 1 : 0);
+    // ลำดับเดือนในปีงบ: ต.ค. = 1 ... ก.ย. = 12
+    const fm = ((ymd.m + 2) % 12) + 1;
+
+    const unit = String(r.unit || '').trim();
+    const row = {
+      ymd, fy, fm, type, amount, unit,
+      category: String(r.category || '').trim(),
+      doc_no: r.doc_no,
+      description: r.description
+    };
+
+    if (!FY_LIST.includes(fy)) {
+      issues.outside.push(row);
+      return;
+    }
+    if (!(unit in plan)) unmatched.add(unit);
+    rows.push(row);
+  });
+
+  issues.unmatchedUnits = [...unmatched];
+  return { issues, rows, plan };
+}
+
+// =====================================================================
+// ส่วนที่ 2: สรุปยอด (รวมตามเดือน, type, category, unit)
+// =====================================================================
+
+function summarize(rows) {
+  // ยอดรายเดือนของแต่ละปีงบ (index 0 = ต.ค.)
+  const monthly = {};
+  FY_LIST.forEach(fy => {
+    monthly[fy] = Array.from({ length: 12 }, () => ({ rev: 0, exp: 0 }));
+  });
+
+  // ยอดรวมปีงบ
+  const tot = {};
+  FY_LIST.forEach(fy => { tot[fy] = { rev: 0, exp: 0 }; });
+
+  // ยอดรายหมวด และรายหน่วยงาน (รายจ่ายปีงบ 2569)
+  const catRev = {};
+  const catExp = {};
+  const unitExpCur = {};
+
+  let revCount = 0;
+  let revTotal = 0;
+  let asOf = null;
+
+  rows.forEach(r => {
+    const isRev = r.type === 'รายรับ';
+    const m = monthly[r.fy][r.fm - 1];
+
+    // ยอดติดลบ (กลับรายการ) รวมเข้าในเดือนที่บันทึก
+    if (isRev) {
+      m.rev += r.amount;
+      tot[r.fy].rev += r.amount;
+    } else {
+      m.exp += r.amount;
+      tot[r.fy].exp += r.amount;
+    }
+
+    const cmap = isRev ? catRev : catExp;
+    if (!cmap[r.category]) cmap[r.category] = {};
+    cmap[r.category][r.fy] = (cmap[r.category][r.fy] || 0) + r.amount;
+
+    if (!isRev && r.fy === FY_CUR) {
+      unitExpCur[r.unit] = (unitExpCur[r.unit] || 0) + r.amount;
+    }
+
+    if (r.amount < 0) {
+      revCount++;
+      revTotal += r.amount;
+    }
+
+    const t = Date.UTC(r.ymd.y, r.ymd.m - 1, r.ymd.d);
+    if (asOf === null || t > asOf) asOf = t;
+  });
+
+  return { monthly, tot, catRev, catExp, unitExpCur, revCount, revTotal, asOf };
+}
+
+// =====================================================================
+// ส่วนที่ 3: คำนวณตัวชี้วัดและชื่อสไลด์
+// =====================================================================
+
+function buildMetrics(S, plan) {
+  const R = { 68: S.tot[FY_PREV].rev, 69: S.tot[FY_CUR].rev };
+  const E = { 68: S.tot[FY_PREV].exp, 69: S.tot[FY_CUR].exp };
+  const Sur = { 68: R[68] - E[68], 69: R[69] - E[69] };
+
+  // ผลต่างรายเดือน และยอดสะสม (ล้านบาท), รีเซ็ตทุกปีงบ
+  const net = {};
+  const cum = {};
+  FY_LIST.forEach(fy => {
+    let c = 0;
+    net[fy] = S.monthly[fy].map(m => m.rev - m.exp);
+    cum[fy] = net[fy].map(v => { c += v; return c; });
+  });
+
+  // เดือนขาดดุลของปี 2569 พร้อมยอดสะสม
+  const deficits69 = [];
+  net[FY_CUR].forEach((v, i) => {
+    if (v < 0) deficits69.push({ month: MONTHS_TH[i], net: v, cum: cum[FY_CUR][i] });
+  });
+  const worstDef = deficits69.length
+    ? deficits69.reduce((a, b) => (b.net < a.net ? b : a))
+    : null;
+
+  // รายหมวดรายรับ เรียงตามยอดปี 2569 จากมากไปน้อย
+  const revCatNames = Object.keys(S.catRev);
+  const revCats = revCatNames.map(name => ({
+    name,
+    v68: S.catRev[name][FY_PREV] || 0,
+    v69: S.catRev[name][FY_CUR] || 0
+  })).sort((a, b) => b.v69 - a.v69);
+
+  // รายหมวดรายจ่าย
+  const expCatNames = Object.keys(S.catExp);
+  const expCats = expCatNames.map(name => ({
+    name,
+    v68: S.catExp[name][FY_PREV] || 0,
+    v69: S.catExp[name][FY_CUR] || 0
+  }));
+
+  // อัตราเบิกจ่ายรายหน่วยงาน (จับคู่ด้วย unit กับ Budget)
+  const units = Object.keys(plan).map(unit => {
+    const p = plan[unit];
+    const act = S.unitExpCur[unit] || 0;
+    return { unit, plan: p, act, rate: p > 0 ? act / p * 100 : null };
+  }).filter(u => u.rate !== null).sort((a, b) => a.rate - b.rate);
+
+  const planTotal = Object.values(plan).reduce((a, b) => a + b, 0);
+  const actTotal = Object.values(S.unitExpCur).reduce((a, b) => a + b, 0);
+  const rateTotal = planTotal ? actTotal / planTotal * 100 : 0;
+
+  const over = units.filter(u => u.rate > 100);
+  const under = units.filter(u => u.rate < 50);
+
+  // หมวดรายจ่ายที่ลดลงมากที่สุด และโตเร็วที่สุด (ใช้ในชื่อสไลด์ 4)
+  const expDeltas = expCats.map(c => ({ ...c, delta: c.v69 - c.v68, pct: pctChange(c.v69, c.v68) }));
+  const expShrink = expDeltas.filter(c => c.delta < 0).sort((a, b) => a.delta - b.delta)[0] || null;
+  const expGrow = expDeltas.filter(c => c.pct !== null).sort((a, b) => b.pct - a.pct)[0] || null;
+
+  // หมวดรายรับที่ลดลงมากที่สุด (ใช้ในชื่อสไลด์ 3)
+  const revDeltas = revCats.map(c => ({ ...c, delta: c.v69 - c.v68, share68: c.v68 / R[68] * 100, share69: c.v69 / R[69] * 100 }));
+  const revShrink = revDeltas.filter(c => c.delta < 0).sort((a, b) => a.delta - b.delta)[0] || null;
+
+  return {
+    R, E, Sur, net, cum, deficits69, worstDef,
+    revCats, expCats, revDeltas, expDeltas, expShrink, expGrow, revShrink,
+    units, over, under, rateTotal, actTotal, planTotal
+  };
+}
+
+// ชื่อสไลด์แบบข้อสรุป ประกอบจากค่าที่คำนวณได้
+function buildTitles(M) {
+  const surDelta = M.Sur[FY_CUR] - M.Sur[FY_PREV];
+  const revG = pctChange(M.R[FY_CUR], M.R[FY_PREV]);
+  const expG = pctChange(M.E[FY_CUR], M.E[FY_PREV]);
+  const expGrowthFaster = expG > revG ? 'เร็ว' : 'ช้า';
+
+  const t1sub = `ส่วนเกิน ${fmtM(M.Sur[FY_CUR])} ล้านบาท รายรับ ${fmtM(M.R[FY_CUR])} ล้านบาท รายจ่าย ${fmtM(M.E[FY_CUR])} ล้านบาท`;
+
+  const t2 = `ส่วนเกิน ${fmtM(M.Sur[FY_CUR])} ล้านบาท ${surDelta >= 0 ? 'เพิ่มขึ้น' : 'ลดลง'} ${fmtMabs(surDelta)} ล้านจากปีก่อน เพราะรายจ่ายโต ${fmtPct(Math.abs(expG))} ${expGrowthFaster}กว่ารายรับ ${fmtPct(Math.abs(revG))}`;
+
+  let t3;
+  if (M.revShrink) {
+    const others = M.revDeltas.filter(c => c !== M.revShrink && c.delta > 0).reduce((a, c) => a + c.delta, 0);
+    t3 = `${M.revShrink.name} ลดลง ${fmtMabs(M.revShrink.delta)} ล้านบาท แต่หมวดอื่นรวมเพิ่มขึ้น ${fmtM(others)} ล้าน สัดส่วนพึ่ง${M.revShrink.name} เปลี่ยนจาก ${fmtPct(M.revShrink.share68)} เป็น ${fmtPct(M.revShrink.share69)}`;
+  } else {
+    t3 = `รายรับทุกหมวดเพิ่มขึ้นรวม ${fmtM(M.R[FY_CUR] - M.R[FY_PREV])} ล้านบาท`;
+  }
+
+  let t4;
+  const expTotalDelta = M.E[FY_CUR] - M.E[FY_PREV];
+  if (M.expGrow && M.expShrink) {
+    t4 = `รายจ่าย${expTotalDelta >= 0 ? 'เพิ่ม' : 'ลด'} ${fmtMabs(expTotalDelta)} ล้านบาท: ${M.expGrow.name} ${fmtPctSigned(M.expGrow.pct)} ขณะที่${M.expShrink.name} ลดลง ${fmtMabs(M.expShrink.delta)} ล้าน`;
+  } else if (M.expGrow) {
+    t4 = `รายจ่ายรวม${expTotalDelta >= 0 ? 'เพิ่ม' : 'ลด'} ${fmtMabs(expTotalDelta)} ล้านบาท: ${M.expGrow.name} โตเร็วที่สุด ${fmtPctSigned(M.expGrow.pct)}`;
+  } else {
+    t4 = `รายจ่ายรวม${expTotalDelta >= 0 ? 'เพิ่ม' : 'ลด'} ${fmtMabs(expTotalDelta)} ล้านบาท`;
+  }
+
+  const overNames = M.over.map(u => u.unit);
+  const underNames = M.under.map(u => u.unit);
+  const overText = overNames.length ? `${overNames.length} หน่วยงานเกินแผน (${overNames.join(', ')})` : 'ไม่มีหน่วยงานเกินแผน';
+  const underText = underNames.length ? `${underNames.length} หน่วยงานต่ำกว่า 50% (${underNames.join(', ')})` : 'ไม่มีหน่วยงานต่ำกว่า 50%';
+  const t5 = `เบิกจ่ายรวม ${fmtPct(M.rateTotal)} ของแผน: ${overText} และ ${underText}`;
+
+  const t6 = `ส่วนเกิน ${fmtM(M.Sur[FY_CUR])} ล้านบาท แต่ต้องตัดสินใจ 3 เรื่อง`;
+
+  return { t1sub, t2, t3, t4, t5, t6 };
+}
+
+// =====================================================================
+// ส่วนที่ 4: แสดงผล
+// =====================================================================
+
+function setText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+// ค่าติดลบ/บวกของส่วนเกิน ใช้สีเพื่อบอกทิศทาง
+function setColored(id, text, positive) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.style.color = positive ? COLORS.pos : COLORS.neg;
+}
+
+// ข้อความฟุตโน้ตทุกหน้า
+function buildFootText(S, issues) {
+  const asOfDate = new Date(S.asOf);
+  const asOfTH = thaiDate(asOfDate.getUTCFullYear(), asOfDate.getUTCMonth() + 1, asOfDate.getUTCDate());
+  const outsideText = issues.outside.length
+    ? `มี ${issues.outside.length} รายการนอกช่วงปีงบ 2568–2569 (ไม่นับ)`
+    : 'ตรวจแล้ว ไม่พบรายการนอกช่วงปีงบ 2568–2569';
+  return `ข้อมูล ณ ${asOfTH} · กลับรายการ ${S.revCount} รายการ หักแล้วสุทธิ ${fmtM2(S.revTotal)} ล้านบาท · ${outsideText} · ข้อมูลสมมติเพื่อการฝึกอบรม`;
+}
+
+// กราฟ และการ์ดทั้งหมด ผู้เรียกต้องทำลายกราฟเดิมก่อนสร้างใหม่
+const charts = {};
+function drawChart(id, config) {
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(document.getElementById(id), config);
+}
+
+// เส้นอ้างอิง 50% และ 100% สำหรับกราฟอัตราเบิกจ่าย
+const refLinesPlugin = {
+  id: 'refLines',
+  afterDatasetsDraw(chart) {
+    const { ctx, chartArea, scales } = chart;
+    const x = scales.x;
+    [50, 100].forEach(v => {
+      const px = x.getPixelForValue(v);
+      if (px < chartArea.left || px > chartArea.right) return;
+      ctx.save();
+      ctx.strokeStyle = v === 100 ? '#555' : '#999';
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(px, chartArea.top);
+      ctx.lineTo(px, chartArea.bottom);
+      ctx.stroke();
+      ctx.fillStyle = '#555';
+      ctx.font = '12px sans-serif';
+      ctx.fillText(v + '%', px + 4, chartArea.top + 12);
+      ctx.restore();
+    });
+  }
+};
+
+function renderSlide1(M, S, issues) {
+  setText('t1sub', buildTitles(M).t1sub);
+  setText('s1rev', fmtM(M.R[FY_CUR]));
+  setText('s1exp', fmtM(M.E[FY_CUR]));
+  setText('s1sur', fmtM(M.Sur[FY_CUR]));
+
+  const revG = pctChange(M.R[FY_CUR], M.R[FY_PREV]);
+  const expG = pctChange(M.E[FY_CUR], M.E[FY_PREV]);
+  const surDelta = M.Sur[FY_CUR] - M.Sur[FY_PREV];
+  setText('s1revd', `ปีก่อน ${fmtM(M.R[FY_PREV])} (${fmtPctSigned(revG)})`);
+  setText('s1expd', `ปีก่อน ${fmtM(M.E[FY_PREV])} (${fmtPctSigned(expG)})`);
+  setText('s1surd', `ปีก่อน ${fmtM(M.Sur[FY_PREV])} (${surDelta >= 0 ? '+' : '−'}${fmtMabs(surDelta)})`);
+
+  const alerts = [];
+  if (issues.outside.length) {
+    const sum = issues.outside.reduce((a, r) => a + r.amount, 0);
+    alerts.push(`<div class="alert">แจ้งเตือน: พบ ${issues.outside.length} รายการนอกช่วงปีงบ 2568–2569 รวม ${fmtM2(sum)} ล้านบาท ไม่นำมาคำนวณ</div>`);
+  }
+  if (issues.unmatchedUnits.length) {
+    alerts.push(`<div class="alert">แจ้งเตือน: หน่วยงาน ${issues.unmatchedUnits.join(', ')} ไม่พบในชีต Budget จึงไม่มีแผนเทียบ</div>`);
+  }
+  if (issues.badDate || issues.badAmount || issues.badType) {
+    alerts.push(`<div class="alert">แจ้งเตือน: ข้ามแถวที่ผิดรูปแบบ วันที่ ${issues.badDate} แถว ยอดเงิน ${issues.badAmount} แถว ประเภท ${issues.badType} แถว</div>`);
+  }
+  document.getElementById('alerts1').innerHTML = alerts.join('') ||
+    '<div class="alert ok">ตรวจข้อมูลแล้ว: ไม่พบรายการนอกช่วงปีงบ และทุกแถวใช้ได้</div>';
+}
+
+function renderSlide2(M) {
+  setText('t2', buildTitles(M).t2);
+
+  const labels = MONTHS_TH;
+  const net69 = M.net[FY_CUR].map(v => v / 1e6);
+  const cum69 = M.cum[FY_CUR].map(v => v / 1e6);
+  const cum68 = M.cum[FY_PREV].map(v => v / 1e6);
+
+  drawChart('c1', {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'ผลต่างรายเดือน 2569',
+          data: net69,
+          backgroundColor: net69.map(v => (v < 0 ? COLORS.neg : COLORS.pos))
+        },
+        {
+          type: 'line',
+          label: 'ยอดสะสม 2569',
+          data: cum69,
+          borderColor: COLORS.cur,
+          backgroundColor: COLORS.cur,
+          borderWidth: 2,
+          pointRadius: 3,
+          tension: 0
+        },
+        {
+          type: 'line',
+          label: 'ยอดสะสม 2568',
+          data: cum68,
+          borderColor: COLORS.prev,
+          backgroundColor: COLORS.prev,
+          borderDash: [6, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          tension: 0
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: { legend: { position: 'bottom' } },
+      scales: {
+        y: { ticks: { callback: v => v.toLocaleString('th-TH') }, title: { display: true, text: 'ล้านบาท' } }
+      }
+    }
+  });
+
+  // รายการเดือนขาดดุลพร้อมยอดสะสม
+  const box = document.getElementById('deficits2');
+  box.innerHTML = M.deficits69.length
+    ? M.deficits69.map(d =>
+        `<span class="chip">${d.month} ${fmtM(d.net)} ล้าน (สะสม ${fmtM(d.cum)} ล้าน)</span>`).join('')
+    : '<span class="chip" style="background:#eef7f5;color:#1a7f72">ไม่มีเดือนขาดดุลในปีงบ 2569</span>';
+}
+
+function renderSlide3(M) {
+  setText('t3', buildTitles(M).t3);
+
+  const cats = M.revCats; // เรียงตามปี 2569 จากมากไปน้อย (เงินอุดหนุนอยู่ฐานเมื่อมีมาก)
+  const datasets = cats.map((c, i) => ({
+    label: c.name,
+    data: [c.v68 / 1e6, c.v69 / 1e6],
+    backgroundColor: COLORS.palette[i % COLORS.palette.length]
+  }));
+
+  drawChart('c2', {
+    type: 'bar',
+    data: { labels: [`ปีงบ ${FY_PREV}`, `ปีงบ ${FY_CUR}`], datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { position: 'bottom' },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.dataset.label}: ${Math.round(ctx.parsed.y).toLocaleString('th-TH')} ล้านบาท`
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true },
+        y: { stacked: true, title: { display: true, text: 'ล้านบาท' }, ticks: { callback: v => v.toLocaleString('th-TH') } }
+      }
+    }
+  });
+}
+
+function renderSlide4(M) {
+  setText('t4', buildTitles(M).t4);
+
+  const cats = M.expDeltas;
+  const labels = ['ปีงบ 2568', ...cats.map(c => c.name), 'ปีงบ 2569'];
+  const base = [0];
+  const up = [0];
+  const down = [0];
+  const total = [M.E[FY_PREV] / 1e6];
+
+  let run = M.E[FY_PREV] / 1e6;
+  cats.forEach(c => {
+    const d = c.delta / 1e6;
+    if (d >= 0) {
+      base.push(run);
+      up.push(d);
+      down.push(0);
+    } else {
+      base.push(run + d);
+      up.push(0);
+      down.push(-d);
+    }
+    total.push(0);
+    run += d;
+  });
+
+  base.push(0);
+  up.push(0);
+  down.push(0);
+  total.push(M.E[FY_CUR] / 1e6);
+
+  drawChart('c3', {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'ฐาน', data: base, backgroundColor: 'rgba(0,0,0,0)', borderWidth: 0 },
+        { label: 'เพิ่ม', data: up, backgroundColor: COLORS.up },
+        { label: 'ลด', data: down, backgroundColor: COLORS.down },
+        { label: 'ยอดรวม', data: total, backgroundColor: COLORS.total }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: {
+          position: 'bottom',
+          labels: { filter: item => item.text !== 'ฐาน' }
+        },
+        tooltip: {
+          filter: item => item.dataset.label !== 'ฐาน' && item.parsed.y !== 0,
+          callbacks: {
+            label: ctx => {
+              const idx = ctx.dataIndex;
+              if (ctx.dataset.label === 'เพิ่ม') return `เพิ่ม ${Math.round(ctx.parsed.y).toLocaleString('th-TH')} ล้านบาท`;
+              if (ctx.dataset.label === 'ลด') return `ลด ${Math.round(ctx.parsed.y).toLocaleString('th-TH')} ล้านบาท`;
+              return `${Math.round(ctx.parsed.y).toLocaleString('th-TH')} ล้านบาท`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, ticks: { autoSkip: false, maxRotation: 45, minRotation: 0 } },
+        y: { stacked: true, title: { display: true, text: 'ล้านบาท' }, ticks: { callback: v => v.toLocaleString('th-TH') } }
+      }
+    }
+  });
+}
+
+function renderSlide5(M) {
+  setText('t5', buildTitles(M).t5);
+
+  const units = M.units;
+  const labels = units.map(u => {
+    let s = `${u.unit}  ${fmtPct(u.rate)}`;
+    if (u.rate > 100) s += `  (เกินแผน +${fmtMabs(u.act - u.plan)} ล้าน)`;
+    return s;
+  });
+  const values = units.map(u => +u.rate.toFixed(1));
+  const colors = units.map(u => {
+    if (u.rate < 50) return COLORS.neg;
+    if (u.rate > 100) return COLORS.over;
+    return COLORS.mid;
+  });
+  const maxRate = Math.max(...values, 100);
+  const axisMax = Math.ceil((maxRate + 10) / 10) * 10;
+
+  drawChart('c4', {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'อัตราเบิกจ่าย (%)', data: values, backgroundColor: colors }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => {
+              const u = units[ctx.dataIndex];
+              return `จริง ${fmtM(u.act)} / แผน ${fmtM(u.plan)} ล้านบาท (${fmtPct(u.rate)})`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: 0,
+          max: axisMax,
+          title: { display: true, text: 'อัตราเบิกจ่ายเทียบแผน (%)' },
+          ticks: { callback: v => v + '%' }
+        }
+      }
+    },
+    plugins: [refLinesPlugin]
+  });
+}
+
+function renderSlide6(M) {
+  setText('t6', buildTitles(M).t6);
+
+  const surDelta = M.Sur[FY_CUR] - M.Sur[FY_PREV];
+  const subsidy = M.revDeltas.find(c => c.name === STATE_SUBSIDY);
+  const worst = M.worstDef
+    ? `${M.worstDef.month} ขาดดุลสูงสุด ${fmtMabs(M.worstDef.net)} ล้านบาท (สะสมคงเหลือ ${fmtM(M.worstDef.cum)} ล้านบาท)`
+    : 'ไม่มีเดือนขาดดุล';
+  const line1 = `ส่วนเกินปี 2569 ${fmtM(M.Sur[FY_CUR])} ล้าน ${surDelta >= 0 ? 'เพิ่ม' : 'ลด'}จากปีก่อน ${fmtMabs(surDelta)} ล้าน รายจ่ายโตเร็วกว่ารายรับ และ${worst}`;
+
+  const line2 = subsidy
+    ? `${STATE_SUBSIDY} ${subsidy.delta >= 0 ? 'เพิ่ม' : 'ลด'} ${fmtMabs(subsidy.delta)} ล้านบาท สัดส่วนเหลือ ${fmtPct(subsidy.share69)} ของรายรับ ต้องดูว่ารายรับหมวดอื่นจะรักษาระดับได้หรือไม่`
+    : `ไม่พบหมวด ${STATE_SUBSIDY} ในข้อมูล`;
+
+  const n = M.over.length + M.under.length;
+  const overList = M.over.map(u => `${u.unit} (+${fmtMabs(u.act - u.plan)} ล้าน)`).join(', ') || 'ไม่มี';
+  const underList = M.under.map(u => `${u.unit} (${fmtPct(u.rate)})`).join(', ') || 'ไม่มี';
+  const line3 = `${n} หน่วยงานเบี่ยงจากแผนผิดปกติ: เกินแผน ${overList} · ต่ำกว่า 50% ${underList} ควรตัดสินใจว่าจะโอนหรือเรียกคืนงบหรือไม่`;
+
+  setText('sum1', line1);
+  setText('sum2', line2);
+  setText('sum3', line3);
+}
+
+// ประกอบทุกหน้า
+function render(M, S, issues) {
+  const foot = buildFootText(S, issues);
+  document.querySelectorAll('[data-foot]').forEach(el => { el.textContent = foot; });
+
+  renderSlide1(M, S, issues);
+  renderSlide2(M);
+  renderSlide3(M);
+  renderSlide4(M);
+  renderSlide5(M);
+  renderSlide6(M);
+
+  // ข้อความบรรทัดคำอธิบายสีใต้กราฟแผน-ผล (สไลด์ 5)
+  setText('key5', 'สีแดง = เบิกจ่ายต่ำกว่า 50% ของแผน · สีเทา = อยู่ระหว่าง 50–100% · สีส้ม = เกินแผน (ระบุจำนวนที่เกิน)');
+
+  // การ์ดสไลด์ 2 ใช้ค่าเดียวกับสไลด์ 1
+  setText('s2rev', '');
+}
+
+// =====================================================================
+// การควบคุมสไลด์และการโหลดไฟล์
+// =====================================================================
+
+const slides = [...document.querySelectorAll('.slide')];
+let cur = 0;
+
+function showSlide(i) {
+  cur = Math.max(0, Math.min(slides.length - 1, i));
+  slides.forEach((s, k) => s.classList.toggle('active', k === cur));
+  document.querySelectorAll('.counter').forEach(c => { c.textContent = `${cur + 1} / ${slides.length}`; });
+  document.querySelectorAll('[data-prev]').forEach(b => { b.disabled = cur === 0; });
+  document.querySelectorAll('[data-next]').forEach(b => { b.disabled = cur === slides.length - 1; });
+}
+
+document.querySelectorAll('[data-prev]').forEach(b => b.addEventListener('click', () => showSlide(cur - 1)));
+document.querySelectorAll('[data-next]').forEach(b => b.addEventListener('click', () => showSlide(cur + 1)));
+document.addEventListener('keydown', e => {
+  if (document.getElementById('deck').style.display !== 'block') return;
+  if (e.key === 'ArrowRight') showSlide(cur + 1);
+  if (e.key === 'ArrowLeft') showSlide(cur - 1);
+});
+
+function showError(msg) {
+  document.getElementById('loadError').textContent = msg;
+}
+
+function loadFromBuffer(buf) {
+  try {
+    const wb = XLSX.read(buf, { type: 'array', cellDates: false });
+    const { issues, rows, plan } = validateAndNormalize(wb);
+
+    if (issues.missingSheets.length) {
+      showError('ไม่พบชีต: ' + issues.missingSheets.join(', '));
+      return;
+    }
+    if (issues.missingCols.length) {
+      showError('ไม่พบคอลัมน์: ' + issues.missingCols.join(', '));
+      return;
+    }
+
+    const S = summarize(rows);
+    const M = buildMetrics(S, plan);
+    render(M, S, issues);
+
+    document.getElementById('loader').style.display = 'none';
+    document.getElementById('deck').style.display = 'block';
+    showSlide(0);
+  } catch (err) {
+    showError('อ่านไฟล์ไม่สำเร็จ: ' + err.message);
+  }
+}
+
+document.getElementById('fileInput').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => loadFromBuffer(reader.result);
+  reader.onerror = () => showError('อ่านไฟล์ไม่สำเร็จ');
+  reader.readAsArrayBuffer(file);
+});
+
+// ลองโหลด data.xlsx ที่อยู่ข้างไฟล์อัตโนมัติ (ทำงานเมื่อเปิดผ่าน http server)
+// เปิดจาก file:// จะล้มเหลวเงียบ ๆ แล้วให้ผู้ใช้เลือกไฟล์เอง
+fetch('data.xlsx')
+  .then(r => { if (!r.ok) throw new Error('not found'); return r.arrayBuffer(); })
+  .then(loadFromBuffer)
+  .catch(() => {});
+</script>
+</body>
+</html>
